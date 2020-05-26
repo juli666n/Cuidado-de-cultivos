@@ -6,36 +6,57 @@ import threading
 from gpiozero import MCP3008
 
 
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(17, GPIO.OUT)
+GPIO.setup(27, GPIO.OUT)
+GPIO.setup(22, GPIO.OUT)
+
+
 mydb = mysql.connector.connect(
-        host = '192.168.0.12',
+        host = '192.168.0.14',
         database = 'db',
         port = '3306',
         user = 'user',
         password = 'password'
         )
 
-def temperatureActuator():
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(23, GPIO.OUT)
-    GPIO.output(23, GPIO.HIGH)
+
+def activateTemperatureActuator():
+    GPIO.output(17, 1)
+    print("AT")
     return
 
 
-def moistureActuator():
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(20, GPIO.OUT)
-    GPIO.output(20, GPIO.HIGH)        
+def deactivateTemperatureActuator():
+    GPIO.output(17, 0)
+    print("DT")
     return
 
 
-def luxActuator():
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(18, GPIO.OUT)
-    GPIO.output(18, GPIO.HIGH)        
+def activateMoistureActuator():
+    GPIO.output(27, 1)        
+    print("AM")
     return
 
 
-def getPlantInfo():
+def deactivateMoistureActuator():
+    GPIO.output(27, 0)        
+    print("DM")
+    return
+
+
+def activateLuxActuator():
+    GPIO.output(22, 1)        
+    print("AL")
+    return
+
+
+def deactivateLuxActuator():
+    GPIO.output(22, 0)        
+    print("DL")
+    return
+
+def getPlantInfo(plantTemperature, plantMoisture, plantLux):
     mydb.connect()
     mycursor = mydb.cursor()
     query = "SELECT temperature, moisture, lux FROM miHuertaSite_plant WHERE isSelected = '1'" 
@@ -60,7 +81,7 @@ def postSensorInfo(temperature, lux, moisture):
     mydb.close()
 
 while True:
-    plantTemperature, plantMoisture, plantLux = getPlantInfo()
+    plantTemperature, plantMoisture, plantLux = getPlantInfo(0, 0, 0)
     tsl = tsl2591.Tsl2591()
     full, ir = tsl.get_full_luminosity()
     l = tsl.calculate_lux(full, ir)
@@ -74,26 +95,18 @@ while True:
     print("Intensidad luminica = ", lux)
     print("Temperatura = ", temperature)
     if moisture < plantMoisture:
-        print("Es necesario riego")
-        moistureActuator()
+       deactivateMoistureActuator()
     elif moisture > plantMoisture:
-        print("Humedad demasiado alta")
-    else:
-        print("Humedad adecuada")
+        activateMoistureActuator()
     if temperature > plantTemperature:
-        print("Temperatura demasiado alta")
-        temperatureActuator()
+        activateTemperatureActuator()
     elif temperature < plantTemperature:
-        print("Temperatura demasiado baja")
-    else:
-        print("Temperatura adecuada")   
+        deactivateTemperatureActuator()
     if lux > plantLux:
-        print("Intensidad luminica demasiado alta")
+        deactivateLuxActuator()
     elif lux < plantLux:
-        print("Intensidad luminica demasidado baja")
-    else:
-        print("Intensidad luminica adecuada")
-    postSensorInfo(moisture, lux, temperature)
+        activateLuxActuator()
+    postSensorInfo(temperature, lux, moisture)
 
 
 
